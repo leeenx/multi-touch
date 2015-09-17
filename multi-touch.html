@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" name="viewport">
+    <meta content="yes" name="apple-mobile-web-app-capable">
+    <meta content="black" name="apple-mobile-web-app-status-bar-style">
+    <meta content="telephone=no" name="format-detection">
+    <meta content="email=no" name="format-detection">
+    <title>A21标杠项目</title>
+    <link rel="stylesheet" href="css/multi-touch.css" />
+    <script type="text/javascript">
+    !function(){
+        var cw=document.documentElement.clientWidth||document.body.clientWidth,ch=document.documentElement.clientHeight||document.body.clientHeight,zoom=cw/320;
+        if(cw>640)zoom=2;
+        window.zoom=zoom/2;
+        if(ch/cw<1.3){
+            window.zoom*=.80;
+        }
+        document.write('<style id="htmlzoom">html{font-size:'+(zoom*50)+'px;}.zoom{zoom:'+window.zoom+';}</style>');
+        window.addEventListener('resize',function(){
+            cw=document.documentElement.clientWidth||document.body.clientWidth,ch=document.documentElement.clientHeight||document.body.clientHeight,zoom=cw/320;
+            if(cw>640)zoom=2;
+            window.zoom=zoom/2;
+            if(ch/cw<1.3){
+                window.zoom*=.80;
+            }
+            document.getElementById('htmlzoom').innerHTML='html{font-size:'+(zoom*50)+'px;}.zoom{zoom:'+window.zoom+';}';
+        });
+    }();
+    </script>
+</head>
+<body ontouchstart>
+<div class="wrapper">
+    <div class="clothesCanvas zoom" id="clothesCanvas">
+        <div class="myItem">
+            <img src="images/match/match_1.png">
+        </div>
+        <div class="myItem">
+            <img src="images/match/match_2.png">
+        </div>
+        <div class="myItem">
+            <img src="images/match/match_3.png">
+        </div>
+        <div class="myItem">
+            <img src="images/match/match_4.png">
+        </div>
+        <div class="myItem">
+            <img src="images/match/match_5.png">
+        </div>
+        <div class="myItem">
+            <img src="images/match/match_6.png">
+        </div>
+        <div class="myItem">
+            <img src="images/match/match_7.png">
+        </div>
+        <div class="myItem new"><!--新添加的样式-->
+            <img src="images/match/match_8.png">
+        </div>
+    </div>
+    <div class="opera">
+        <a href="#5" class="addGoodsBtn">继续添加商品</a>
+        <a href="javascript:saveMyMatch();" class="addGoodsBtn2">保存与分享</a>
+    </div>
+</div>
+</body>
+<script type="text/javascript">
+var webkit=function(){
+    //浏览器特有css样式的
+    var css3_div=document.createElement("div");
+    css3_div.style.cssText='-webkit-transition:all .1s; -moz-transition:all .1s; -o-transition:all .1s; -ms-transition:all .1s; transition:all .1s;';
+    if(css3_div.style.webkitTransition){
+        return '-webkit-';
+    }else if(css3_div.style.MozTransition){
+        return '-moz-';
+    }else if(css3_div.style.oTransition){
+        return '-o-';
+    }else if(css3_div.style.msTransition){
+        return '-ms-';
+    }else{
+        return '';
+    }
+}();
+/*
+    @author:leeenx
+    @loading
+*/
+var LOADING=function(){
+    //动态loading层
+    var loadingDom=document.createElement("div");
+    loadingDom.className='loading';
+    loadingDom.innerHTML='\
+    <div class="loadingBox">\
+        <div class="loadingImg"></div>\
+        努力保存中\
+    </div>';
+    var show=function(){
+        document.body.appendChild(loadingDom);
+    },
+    hide=function(){
+        document.body.removeChild(loadingDom);
+    };
+    return {show:show,hide:hide};
+}();
+//搭配代码
+var createMatch=function(){
+    var clothesCanvas=document.getElementById("clothesCanvas"),sto,operaMenuContainer=document.createElement("div");
+    document.body.appendChild(operaMenuContainer);
+    if(!clothesCanvas)return ;
+    var showOperaMenu=function(x,y,target){
+        var operaMenu=document.createElement("div");
+        operaMenu.className="operaMenu zoom",operaMenu.innerHTML='删除图层';
+        operaMenu.style.left=x/zoom+"px",operaMenu.style.top=y/zoom+"px";
+        operaMenuContainer.appendChild(operaMenu);
+        operaMenu.ontouchstart=function(){
+            target.parentNode.removeChild(target);
+            this.parentNode.removeChild(this);
+        };
+    };
+    var fingers={length:0},targetArr=[];
+    var _touchstartAct=function(e,touch){
+        var target=touch.target;
+        if(target.className!="myItem new"&&target.className!="myItem"){//对象不是可移动对象
+            return ;
+        }
+        e.preventDefault();
+        var targetID=target.getAttribute("targetID"),touchID=touch.identifier;
+        if(!targetID){//为对应的targetID添加第一个手指
+            targetID=targetArr.length+1;
+            target.setAttribute("targetID",targetID);
+            targetArr[targetID]={touches:[touchID],self:target,x:0,y:0,scale:1,rotate:0};
+        }else{//追加非第一个手指
+            targetArr[targetID].touches.push(touchID);
+        }
+        if("operaMenu"==target.className){
+            //点击了删除对象
+            target.parentNode.parentNode.removeChild(target.parentNode);
+            return ;
+        }
+        //存储手指
+        fingers["id_"+touchID]={id:touch.identifier,target:target,x:targetArr[targetID].x||0,y:targetArr[targetID].y||0,scale:targetArr[targetID].scale||1,rotate:targetArr[targetID].rotate||0,pageX:touch.pageX,pageY:touch.pageY,x0:touch.pageX,y0:touch.pageY,targetID:targetID};
+        ++fingers.length>1&&sto&&clearTimeout(sto);
+        //计算target的c值
+        var _len=targetArr[targetID].touches.length;
+        if(_len>1){
+            //取第一个touch与最后一个touch做为两只操作手指
+            var finger1=fingers["id_"+targetArr[targetID].touches[0]],finger2=fingers["id_"+targetArr[targetID].touches[_len-1]],
+            x0=finger1.x0,y0=finger1.y0,x1=finger2.x0,y1=finger2.y0;
+            targetArr[targetID].c=Math.sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0));//两指之间的距离
+            var atan=Math.atan((x1-x0)/(y1-y0));
+            targetArr[targetID].atan=atan;
+        }else{
+            targetArr[targetID].c=0;
+        }
+
+        sto=setTimeout(function(){
+            if(fingers.length==1)
+            showOperaMenu(touch.pageX,touch.pageY,target);
+        },1000);
+        target.className="myItem";
+        try{
+            operaMenuContainer.innerHTML='';
+        }catch(e){}
+    };
+    clothesCanvas.addEventListener("touchstart",function(e){
+        // e.preventDefault();
+        for(var i=0,len=e.targetTouches.length;i<len;++i){
+            _touchstartAct(e,e.targetTouches[i]);
+        }
+    });
+
+    clothesCanvas.addEventListener("touchmove",function(e){
+        //e.preventDefault();
+        sto&&clearTimeout(sto);
+        var targetIDArr=[]
+        for(var i=0,len=e.targetTouches.length;i<len;++i){//收集pageX,pageY
+            var touch=e.targetTouches[i],touchID=touch.identifier,_touch=fingers["id_"+touchID];
+            if(_touch){
+                //存在于fingers中
+                var target=_touch.target,x0=_touch.x0,y0=_touch.y0,_x=_touch.x,_y=_touch.y;//_x,_y表示transform中的值
+                _touch.pageX=touch.pageX,_touch.pageY=touch.pageY;
+                targetIDArr.push(_touch.targetID);
+            }
+        }
+        //根据targetIDArr来做缩放
+        for(var i=0,len=targetIDArr.length;i<len;++i){
+            //计算target的c值
+            var targetID=targetIDArr[i],_len=targetArr[targetID].touches.length;
+            if(_len>1){
+                //取第一个touch与最后一个touch做为两只操作手指
+                var finger1=fingers["id_"+targetArr[targetID].touches[0]],finger2=fingers["id_"+targetArr[targetID].touches[_len-1]],
+                x=targetArr[targetID].x,y=targetArr[targetID].y,
+                x0=finger1.pageX,y0=finger1.pageY,x1=finger2.pageX,y1=finger2.pageY,scale=targetArr[targetID].scale||1,rotate=targetArr[targetID].rotate||0,c0=targetArr[targetID].c,
+                c1=Math.sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0)),//两指之间的距离
+                atan0=targetArr[targetID].atan,
+                atan1=Math.atan((x1-x0)/(y1-y0));
+                scale*=c1/c0;
+                var deltaAtan=atan1-atan0;
+                var deltaR=deltaAtan*180/Math.PI;
+                if(deltaR>90){
+                    deltaR=deltaR-180;
+                }else if(deltaR<-90){
+                    deltaR=180+deltaR;
+                }
+                rotate=(rotate-deltaR)%360;
+                targetArr[targetID].self.style[webkit+'transform']='translate3d('+x/zoom+'px,'+y/zoom+'px,0) scale('+scale+') rotate('+rotate+'deg)';
+                targetArr[targetID].c=c1,targetArr[targetID].scale=scale,targetArr[targetID].rotate=rotate,targetArr[targetID].atan=atan1;
+            }else{
+                //单指操作
+                var finger0=fingers["id_"+targetArr[targetID].touches[0]],x=targetArr[targetID].x,y=targetArr[targetID].y,x0=finger0.x0,y0=finger0.y0,x1=finger0.pageX,y1=finger0.pageY,scale=targetArr[targetID].scale||1,rotate=targetArr[targetID].rotate||0;
+                x+=x1-x0,y+=y1-y0;
+                targetArr[targetID].self.style[webkit+'transform']='translate3d('+x/zoom+'px,'+y/zoom+'px,0) scale('+scale+') rotate('+rotate+'deg)';
+                //改成实时存坐标
+                targetArr[targetID].x=x,targetArr[targetID].y=y;
+                finger0.x0=x1,finger0.y0=y1;
+            }
+        }
+        createMatch.getTargetInfo=function(targetID){
+            return targetArr[targetID];
+        };
+    });
+    var _touchendAct=function(touch){
+        var touchID=touch.identifier,_touch=fingers["id_"+touchID];
+        if(_touch){
+            //存在
+            var target=_touch.target,x0=_touch.x0,y0=_touch.y0,_x=targetArr[_touch.targetID].x,_y=targetArr[_touch.targetID].y;//_x,_y表示transform中的值
+        }
+        else{//中断
+            return ;
+        }
+        if(targetArr[_touch.targetID].touches.length==1){//单手指
+            //定位
+            var _x1=touch.pageX-x0+_x,x1=_x1/zoom,_y1=touch.pageY-y0+_y,y1=_y1/zoom;
+            target.style[webkit+'transform']='translate3d('+x1+'px,'+y1+'px,0) scale('+targetArr[_touch.targetID].scale+') rotate('+targetArr[_touch.targetID].rotate+')';
+            //x,y轴最终定位
+            targetArr[_touch.targetID].x=_x1,targetArr[_touch.targetID].y=_y1;
+        }
+        //删除对应在target上的所有手指
+        ~function(){
+            var touches=targetArr[_touch.targetID].touches;
+            for(var i=0,len=touches.length;i<len;++i){
+                delete fingers["id_"+touches[i]];
+                --fingers.length;
+            }
+            targetArr[_touch.targetID].touches=[];
+        }();
+    },
+    _touchend=function(e){
+        e.preventDefault();
+        for(var i=0,len=e.changedTouches.length;i<len;++i){
+            _touchendAct(e.changedTouches[i]);
+        }
+    };
+    clothesCanvas.addEventListener("touchend",_touchend);
+    clothesCanvas.addEventListener("touchcancel",_touchend);
+};
+var tmpCanvas=document.createElement("canvas");
+tmpCanvas.width=600,tmpCanvas.height=870;
+var context=tmpCanvas.getContext("2d");
+var loadMatch=function(imgsrc,cb){
+    var img=new Image();
+    img.onload=function(){
+        cb&&cb(img);
+    };
+    img.src=imgsrc;
+};
+var createShareImg=function(loadedImg){
+    LOADING.show();
+    context.rect(0,0,600,870);
+    context.fillStyle='#e1e5ea',context.fill();
+    for(var i=0,len=loadedImg.length;i<len;++i){
+        if(!loadedImg[i])continue ;//如果不存在，跳过
+        var targetID=loadedImg[i].targetID||-1;
+        var targetInfo=createMatch.getTargetInfo(targetID)||{x:0,y:0,scale:1,rotate:0};
+        var x=targetInfo.x/zoom,y=targetInfo.y/zoom,scale=targetInfo.scale,rotate=targetInfo.rotate,w=loadedImg[i].img.width,h=loadedImg[i].img.height;//x,y事实上是实际尺寸，所以需要除以zoom
+        if(scale!=1||rotate!=0){
+            context.save();
+            context.translate(x+w/2,y+h/2);
+            context.scale(scale,scale);
+            context.rotate(rotate*Math.PI/180);
+            context.drawImage(loadedImg[i].img,-w/2,-h/2);
+            context.restore();
+        }else{
+            context.drawImage(loadedImg[i].img,x,y);
+        }
+    };
+    var base64=tmpCanvas.toDataURL();
+    console.log(base64);
+    LOADING.hide();
+    alert("base64保存成功");
+};
+var saveMyMatch=function(){
+    var clothesCanvas=document.getElementById("clothesCanvas"),
+    myItem=clothesCanvas.querySelectorAll(".myItem > img"),len=myItem.length,
+    loadedImg=[],//已经加载成功的图片
+    loadedCount=0;
+    clothesCanvas.className+=' lock';
+    if(len>0){
+        //有图片
+        //如果3s内，图片都没有加载成功，表示有部分图片没加载成功，直接忽略这部分图片
+        var createImg_sto=setTimeout(function(){
+            createShareImg(loadedImg);
+        },3000);
+        //加载图片
+        for(var i=0;i<len;++i){
+            //要确保图片都加载完成
+            ~function(i){
+                loadMatch(myItem[i].src,function(img){
+                    var x=myItem[i].parentNode.getAttribute("x")||0,y=myItem[i].parentNode.getAttribute("y")||0;
+                    loadedImg[i]={img:img,targetID:myItem[i].parentNode.getAttribute("targetID")};
+                    if(++loadedCount==len){
+                        clearTimeout(createImg_sto);
+                        createShareImg(loadedImg);
+                    }
+                });
+            }(i);
+        };
+    }else{
+        //没有图片
+        alert("没有图片哦");
+    }
+
+};
+
+//调用函数
+createMatch();
+</script>
+</html>
